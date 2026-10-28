@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6c4cf1">
+<title>¡Atrapa las estrellas!</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;
+    color: #241b42; background: linear-gradient(160deg, #fff1f7, #eeeaff);
+    display: flex; justify-content: center; padding: 18px;
+  }
+  .app { width: 100%; max-width: 560px; text-align: center; }
+  h1 { margin: 8px 0 4px; font-size: clamp(2rem, 8vw, 3rem); }
+  .subtitle { margin: 0 0 18px; color: #665b7c; }
+  .stats { display: flex; gap: 10px; margin: 16px 0; }
+  .stat { flex: 1; background: #fff; border-radius: 16px; padding: 12px 8px; box-shadow: 0 5px 16px #5b399c12; }
+  .stat span { display: block; color: #796d8f; font-size: .85rem; }
+  .stat strong { font-size: 1.5rem; }
+  #arena {
+    height: min(52vh, 390px); min-height: 280px; position: relative; overflow: hidden;
+    border: 3px solid #fff; border-radius: 24px;
+    background: radial-gradient(circle at 20% 20%, #fff 0 2px, transparent 3px),
+                radial-gradient(circle at 75% 30%, #fff 0 2px, transparent 3px),
+                linear-gradient(135deg, #c8b8ff, #f6c9e5);
+    box-shadow: 0 12px 28px #6741a322; touch-action: manipulation;
+  }
+  #target {
+    display: none; position: absolute; width: 62px; height: 62px; border: 0;
+    background: #fff; border-radius: 50%; font-size: 2.1rem; cursor: pointer;
+    box-shadow: 0 5px 15px #4b278c30; animation: pop .18s ease-out;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @keyframes pop { from { transform: scale(.6); } to { transform: scale(1); } }
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; padding: 22px;
+    background: #fff8; backdrop-filter: blur(3px);
+  }
+  .overlay h2 { margin: 0 0 8px; font-size: 1.7rem; }
+  .overlay p { margin: 0 0 16px; max-width: 300px; }
+  button.primary {
+    border: 0; border-radius: 999px; padding: 13px 24px; font-weight: 800;
+    font-size: 1rem; color: white; background: #6c4cf1; cursor: pointer;
+    box-shadow: 0 5px 0 #4c31bd;
+  }
+  button.primary:active { transform: translateY(2px); box-shadow: 0 3px 0 #4c31bd; }
+  .hint { margin: 14px 0; color: #665b7c; font-size: .92rem; }
+  footer { margin-top: 18px; color: #847997; font-size: .8rem; }
+</style>
+</head>
+<body>
+<main class="app">
+  <h1>⭐ ¡Atrapa las estrellas!</h1>
+  <p class="subtitle">Un mini juego para poner a prueba tus reflejos ✨</p>
+  <section class="stats" aria-label="Marcador">
+    <div class="stat"><span>Puntos</span><strong id="score">0</strong></div>
+    <div class="stat"><span>Tiempo</span><strong><span id="time" style="display:inline;color:inherit;font-size:inherit">20</span>s</strong></div>
+    <div class="stat"><span>Récord</span><strong id="best">0</strong></div>
+  </section>
+  <section id="arena" aria-label="Zona de juego">
+    <button id="target" aria-label="Atrapar estrella">⭐</button>
+    <div class="overlay" id="overlay">
+      <h2>¿Lista para jugar?</h2>
+      <p>Tenés 20 segundos para tocar todas las estrellas que puedas. ¡Cada estrella vale un punto!</p>
+      <button class="primary" id="start">¡Empezar!</button>
+    </div>
+  </section>
+  <p class="hint">💡 Consejo: tocá la estrella apenas aparezca. ¡Suerte!</p>
+  <footer>Hecho con 💜 · Juego web gratuito</footer>
+</main>
+<script>
+(() => {
+  const arena = document.getElementById('arena');
+  const target = document.getElementById('target');
+  const overlay = document.getElementById('overlay');
+  const start = document.getElementById('start');
+  const scoreEl = document.getElementById('score');
+  const timeEl = document.getElementById('time');
+  const bestEl = document.getElementById('best');
+  let score = 0, time = 20, running = false, clock = null, move = null;
+  let best = 0;
+  try { best = Number(localStorage.getItem('starGameBest') || 0); } catch (_) {}
+  bestEl.textContent = best;
+
+  function moveStar() {
+    const maxX = Math.max(0, arena.clientWidth - target.offsetWidth - 12);
+    const maxY = Math.max(0, arena.clientHeight - target.offsetHeight - 12);
+    target.style.left = (6 + Math.random() * maxX) + 'px';
+    target.style.top = (6 + Math.random() * maxY) + 'px';
+  }
+  function endGame() {
+    running = false;
+    clearInterval(clock); clearInterval(move);
+    target.style.display = 'none';
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `<h2>¡Se terminó! 🎉</h2><p>Hiciste <strong>${score}</strong> puntos. ${score >= best ? '¡Nuevo récord!' : '¡Probá otra vez para superarte!'}</p><button class="primary" id="again">Jugar de nuevo</button>`;
+    document.getElementById('again').addEventListener('click', startGame);
+  }
+  function startGame() {
+    clearInterval(clock); clearInterval(move);
+    score = 0; time = 20; running = true;
+    scoreEl.textContent = score; timeEl.textContent = time;
+    overlay.style.display = 'none'; target.style.display = 'block';
+    moveStar();
+    move = setInterval(moveStar, 850);
+    clock = setInterval(() => {
+      time--; timeEl.textContent = time;
+      if (time <= 0) endGame();
+    }, 1000);
+  }
+  target.addEventListener('click', () => {
+    if (!running) return;
+    score++; scoreEl.textContent = score;
+    if (score > best) {
+      best = score; bestEl.textContent = best;
+      try { localStorage.setItem('starGameBest', String(best)); } catch (_) {}
+    }
+    moveStar();
+  });
+  start.addEventListener('click', startGame);
+  window.addEventListener('resize', () => { if (running) moveStar(); });
+})();
+</script>
+</body>
+</html>
